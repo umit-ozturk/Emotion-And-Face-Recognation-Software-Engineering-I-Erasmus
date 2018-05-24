@@ -22,4 +22,35 @@ def detect_face(img):
 	#return only the face part of the image
 	return gray[y:y+w, x:x+h], faces[0]
 
-detect_face(img)
+def prepare_training_data(training_path):
+	dirs = os.listdir(training_path) # listing training data folder
+	faces = []
+	users = []
+	for user in dirs: # listing user folder
+		label = user
+		print(user)
+		training_user_folder = training_path + "/" + user # user folder
+		user_images_names = os.listdir(training_user_folder) # user images
+		for image_name in user_images_names:
+			if image_name.startswith("."): # Ignore For Ds.Store File
+				continue;
+			image_path = training_user_folder + "/" + image_name
+			image = cv2.imread(image_path)
+			cv2.imshow("Training on image...", cv2.resize(image, (400, 500)))
+			cv2.waitKey(50)
+			face, rect = detect_face(image)
+			if face is not None:
+				faces.append(face)
+				users.append(user)
+	cv2.destroyAllWindows()
+
+	return faces, users
+
+print("Preparing User data")
+faces, users = prepare_training_data(training_path)
+print(users)
+print("User Data prepared")
+
+# total faces and users
+print("Total faces: ", len(faces))
+print("Total labels: ", len(users))	

@@ -1,42 +1,46 @@
 import argparse
 import cv2
 from time import sleep
-import shutil
+from shutil import rmtree
 import os
 
 training_path = "training"
 
 def check_positive(value):
+	"""  This function checks whether the input is positive or not.   """
 	ivalue = int(value)
 	if ivalue <= 0:
 		raise argparse.ArgumentTypeError("Please Enter Positive Number")
 	return ivalue
 
 def folder_check_or_create(user):
+	""" This function checks whether the user folder is exists or not exists.  """
 	training_user_folder = training_path + "/" + user
 	if not os.path.exists(training_user_folder):
 		os.makedirs(training_user_folder)
-	if os.path.exists(training_user_folder):
-		print("This folder already exist. To change it, type yes and press enter.")
-		query = input("If you write 'yes' yhe folder will deleted.")
-		if query == "yes":
-			shutil.rmtree(training_user_folder)
-			os.makedirs(training_user_folder)
-		else:
-			raise Exception("Program is down")
+	else:
+		if os.path.exists(training_user_folder):
+			print("This folder already exist. To change it, type yes and press enter.")
+			query = input("If you write 'yes' yhe folder will deleted.")
+			if query == "yes":
+				rmtree(training_user_folder)
+				os.makedirs(training_user_folder)
+			else:
+				raise Exception("Program is down")
 
 def capture_the_picture(number_of_photos, user):
-	folder_check_or_create(user)
+	""" This function captures the user pictures.  """
+	folder_check_or_create(user) # check folder exist and create
 
 	camera = cv2.VideoCapture(0)
 	for x in range(number_of_photos+1):
-		save_image_path = training_path + "/" + user + "/" + user + str(x) + '.jpg'
-		return_value,image = camera.read()
-		print(image)
-
-		cv2.imwrite(save_image_path, image)
-		print(str(x) + ". taked photo ")
-		sleep(2)
+		save_image_path = training_path + "/" + user + "/" + user + str(x+1) + '.jpg'
+		accept = input("For capture photo please enter 'y'.")
+		if accept == "y":		
+			return_value,image = camera.read()
+			cv2.imwrite(save_image_path, image)
+			print(str(x) + ". taked photo ")
+			sleep(1)
 	camera.release()
 	cv2.destroyAllWindows()
 
