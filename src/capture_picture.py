@@ -33,7 +33,7 @@ def capture_the_picture(number_of_photos, user):
 	folder_check_or_create(user) # check folder exist and create
 
 	camera = cv2.VideoCapture(0)
-	for x in range(number_of_photos+1):
+	for x in range(number_of_photos):
 		save_image_path = training_path + "/" + user + "/" + user + str(x+1) + '.jpg'
 		accept = input("For capture photo please enter 'y'.")
 		if accept == "y":		
