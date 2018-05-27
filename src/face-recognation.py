@@ -1,11 +1,15 @@
 import cv2
 import os
 import numpy as np
-from PIL import Image
+from scipy.ndimage import zoom
+from sklearn.externals import joblib
+from sklearn.svm import SVC
+
 
 trainingPath = "training"
 
-subjects = ["", "Umit Ozturk", "Elvis Presley"]
+svc_1 = joblib.load('smile.joblib.pkl')
+
 
 def detect_face(img):
 	#convert the test image to gray image as opencv face detector expects gray images
@@ -19,19 +23,44 @@ def detect_face(img):
 	#let's detect multiscale (some images may be closer to camera than others) images
 	faces = faceCascade.detectMultiScale(
 								gray,
-								scaleFactor=1.1,
+								scaleFactor=1.3,
 								minNeighbors=6,
 								minSize=(100, 100),
 							)
-	faces = faceCascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5);
 	if (len(faces) == 0): #if no faces are detected then return original img
-	    return None, None
-
-	#extract the face area
-	(x, y, w, h) = faces[0]
-
+		return None, None
 	#return only the face part of the image
-	return gray[y:y+w, x:x+h], faces[0]
+	return gray, faces
+
+def extract_face_area(gray, face, offset_coefficients):
+	(x, y, w, h) = face
+	horizontal_offset = offset_coefficients[0] * w
+	vertical_offset = offset_coefficients[1] * h
+	y = y.astype(np.float64)
+	x = x.astype(np.float64)
+	w = w.astype(np.float64)
+	h = h.astype(np.float64)
+	horizontal_offset = horizontal_offset.astype(np.float64)
+	vertical_offset = vertical_offset.astype(np.float64)
+
+	vertical_offset_y = y+vertical_offset
+	y_h = y+h
+	x_horizontal_offset = x+horizontal_offset
+	x_horizontal_offset_w = x-horizontal_offset+w
+
+	vertical_offset_y = int(vertical_offset_y)
+	y_h = int(y_h)
+	x_horizontal_offset = int(x_horizontal_offset)
+	x_horizontal_offset_w = int(x_horizontal_offset_w)
+
+	extracted_face = gray[vertical_offset_y:y_h,
+								x_horizontal_offset:x_horizontal_offset_w]
+	new_extracted_face = zoom(extracted_face, (64. / extracted_face.shape[0],
+								64. / extracted_face.shape[1]))
+	new_extracted_face = new_extracted_face.astype(np.float32)
+	new_extracted_face /= float(new_extracted_face.max())
+	return new_extracted_face
+
 
 def image_reader(imagePath):
 	image = cv2.imread(imagePath)
@@ -43,14 +72,14 @@ def prepare_training_data(trainingPath):
 	dirs = os.listdir(trainingPath) # listing training data folder
 	faces = []
 	labels = []
-	i = 1
+	users = []
+	i = 0
 	for user in dirs: # listing user folder
-
-		label = i
-		i =+ 1
-		print(user)
 		if user.startswith("."): # Ignore For Ds.Store File
-			continue;		
+			continue;
+		label = i
+		i =+ 1			
+		users.append(user)			
 		trainingUserFolder = trainingPath + "/" + user # user folder
 		userImagesNames = os.listdir(trainingUserFolder) # user images
 		for imageName in userImagesNames:
@@ -64,98 +93,96 @@ def prepare_training_data(trainingPath):
 				labels.append(label)
 	cv2.destroyAllWindows()
 
-	return faces, labels
-
-def draw_rectangle(img, rect):
-	(x, y, w, h) = rect
-	cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-    
-#function to draw text on give image starting from
-#passed (x, y) coordinates. 
-def draw_text(img, text, x, y):
-	cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_PLAIN, 1.5, (0, 255, 0), 2)
+	return faces, labels, users
 
 
-def predict(test_img):
+
+
+def predict_face_is_smiling(extracted_face):
+	return svc_1.predict([extracted_face.ravel()])[0]
+
+def predict(pre_frame):
 	#make a copy of the image as we don't want to chang original image
-	img = test_img.copy()
+	frame = pre_frame.copy()
 	#detect face from the image
-	face, rect = detect_face(img)
+	rect, face = detect_face(frame)
 	if face is not None and rect is not None:
 		#predict the image using our face recognizer 
-		label, confidence = face_recognizer.predict(face)
+		label, confidence = face_recognizer.predict(rect)
+		print(label)
+		print(confidence)
+
 		#get name of respective label returned by face recognizer
-		label_text = subjects[label]
-
-		#draw a rectangle around face detected
-		draw_rectangle(img, rect)
-		#draw name of predicted person
-		draw_text(img, label_text, rect[0], rect[1]-5)		
-	else:
-		draw_rectangle(img, rect)
-
-	return img
+		label_text = users[label]
+		return label_text
 
 
 print("Preparing User data")
-faces, labels = prepare_training_data(trainingPath)
+images, labels, users = prepare_training_data(trainingPath)
 print(labels)
+print(users)
 print("User Data prepared")
 
 # total faces and labels
-print("Total faces: ", len(faces))
+print("Total faces: ", len(images))
 print("Total labels: ", len(labels))
 
 face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-face_recognizer.train(faces, np.array(labels))
+print(face_recognizer.train(images, np.array(labels)))
+face_recognizer.train(images, np.array(labels))
 
 
 
-# video_capture = cv2.VideoCapture(0)
-# while True:
-# 	# Capture frame-by-frame
-# 	ret, frame = video_capture.read()
+video_capture = cv2.VideoCapture(0)
+while True:
+	# Capture frame-by-frame
+	ret, frame = video_capture.read()
 
-# 	# detect faces
-# 	gray, detected_faces = detect_face(frame)
+	# detect faces
+	gray, faces = detect_face(frame)
 
-# 	face_index = 0
+	face_index = 0
+	if faces is not None:
+		# predict output
+		for face in faces:
+			(x, y, w, h) = face
+			if w > 100:
+				# draw rectangle around face 
+				cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
-# 	# predict output
-# 	for face in detected_faces:
-# 		(x, y, w, h) = face
-# 		if w > 100:
-# 			# draw rectangle around face 
-# 			cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+				# extract features
+				extracted_face = extract_face_area(gray, face, (0.03, 0.05)) #(0.075, 0.05)
+				face = gray[y:y + h, x:x + w]
+				face_resize = cv2.resize(face, (1280, 720))
+				prediction = face_recognizer.predict(face_resize)
+				print(prediction)
+				label_text = users[prediction[0]]
+				# predict smile
+				prediction_result = predict_face_is_smiling(extracted_face)
 
-# 			# extract features
-# 			extracted_face = extract_face_features(gray, face, (0.03, 0.05)) #(0.075, 0.05)
-# 			print(extracted_face)
-# 			# predict smile
-# 			prediction_result = predict_face_is_smiling(extracted_face)
+				# draw extracted face in the top right corner
+				frame[face_index * 64: (face_index + 1) * 64, -65:-1, :] = cv2.cvtColor(extracted_face * 255, cv2.COLOR_GRAY2RGB)
+				if prediction[1]<500:
+					print("done")
+				# annotate main image with a label
+				if prediction_result == 1:
+				    cv2.putText(frame, "SMILING" + label_text,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
+				else:
+				    cv2.putText(frame, "NOT SMILINGs" + label_text,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
 
-# 			# draw extracted face in the top right corner
-# 			frame[face_index * 64: (face_index + 1) * 64, -65:-1, :] = cv2.cvtColor(extracted_face * 255, cv2.COLOR_GRAY2RGB)
+				# increment counter
+				face_index += 1
 
-# 			# annotate main image with a label
-# 			if prediction_result == 1:
-# 			    cv2.putText(frame, "SMILING",(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
-# 			else:
-# 			    cv2.putText(frame, "NOT SMILINGs",(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
+	# Display the resulting frame
+	cv2.imshow('Video', frame)
 
-# 			# increment counter
-# 			face_index += 1
-			
-# 	# Display the resulting frame
-# 	cv2.imshow('Video', frame)
-
-# 	if cv2.waitKey(1) & 0xFF == ord('q'):
-# 		break
+	if cv2.waitKey(1) & 0xFF == ord('q'):
+		break
 
 #load test images
 #test_img1 = image_reader("testing/umit1.jpg")
 #perform a prediction
-#predicted_img1 = predict(test_img1)
+#predicted_img = predict(test_img1)
 
 #print("Prediction complete")
 
