@@ -11,13 +11,15 @@ trainingPath = "training"
 svc_1 = joblib.load('smile.joblib.pkl')
 
 
+(im_width, im_height) = (1280, 920)
+
 def detect_face(img):
 	#convert the test image to gray image as opencv face detector expects gray images
 
 	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 	#load OpenCV face detector, I am using LBP which is fast
-	cascPath = "lib/haarcascade_frontalface_alt.xml"
+	cascPath = "lib/lbpcascade_frontalface.xml"
 	faceCascade = cv2.CascadeClassifier(cascPath)
 
 	#let's detect multiscale (some images may be closer to camera than others) images
@@ -31,6 +33,30 @@ def detect_face(img):
 		return None, None
 	#return only the face part of the image
 	return gray, faces
+
+
+def detect_face_for_face_detection(img):
+	#convert the test image to gray image as opencv face detector expects gray images
+	gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+	#load OpenCV face detector, I am using LBP which is fast
+	#there is also a more accurate but slow Haar classifier
+	face_cascade = cv2.CascadeClassifier('lib/lbpcascade_frontalface.xml')
+
+	#let's detect multiscale (some images may be closer to camera than others) images
+	#result is a list of faces
+	faces = face_cascade.detectMultiScale(gray, scaleFactor=1.2, minNeighbors=5);
+
+	#if no faces are detected then return original img
+	if (len(faces) == 0):
+		return None, None
+
+	#under the assumption that there will be only one face,
+	#extract the face area
+	(x, y, w, h) = faces[0]
+
+	#return only the face part of the image
+	return gray[y:y+w, x:x+h], faces[0]	
 
 def extract_face_area(gray, face, offset_coefficients):
 	(x, y, w, h) = face
@@ -78,7 +104,7 @@ def prepare_training_data(trainingPath):
 		if user.startswith("."): # Ignore For Ds.Store File
 			continue;
 		label = i
-		i =+ 1			
+		i = i + 1			
 		users.append(user)			
 		trainingUserFolder = trainingPath + "/" + user # user folder
 		userImagesNames = os.listdir(trainingUserFolder) # user images
@@ -87,12 +113,12 @@ def prepare_training_data(trainingPath):
 				continue;
 			imagePath = trainingUserFolder + "/" + imageName
 			image = image_reader(imagePath)
-			face, rect = detect_face(image)
+
+			face, rect = detect_face_for_face_detection(image)
 			if face is not None:
 				faces.append(face)
 				labels.append(label)
 	cv2.destroyAllWindows()
-
 	return faces, labels, users
 
 
@@ -101,35 +127,35 @@ def prepare_training_data(trainingPath):
 def predict_face_is_smiling(extracted_face):
 	return svc_1.predict([extracted_face.ravel()])[0]
 
-def predict(pre_frame):
+def predict(pre_frame, face):
+	img = pre_frame.copy()
 	#make a copy of the image as we don't want to chang original image
-	frame = pre_frame.copy()
-	#detect face from the image
-	rect, face = detect_face(frame)
-	if face is not None and rect is not None:
-		#predict the image using our face recognizer 
-		label, confidence = face_recognizer.predict(rect)
+	if face is not None:
+		#predict the image using our face recognizer
+		face_resize = cv2.resize(face, (im_width, im_height))
+		label, confidence = face_recognizer.predict(face_resize)
 		print(label)
-		print(confidence)
 
 		#get name of respective label returned by face recognizer
 		label_text = users[label]
+		print(label_text)
 		return label_text
 
 
 print("Preparing User data")
-images, labels, users = prepare_training_data(trainingPath)
+faces, labels, users = prepare_training_data(trainingPath)
+print(faces)
 print(labels)
 print(users)
 print("User Data prepared")
 
 # total faces and labels
-print("Total faces: ", len(images))
+print("Total faces: ", len(faces))
 print("Total labels: ", len(labels))
 
 face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-print(face_recognizer.train(images, np.array(labels)))
-face_recognizer.train(images, np.array(labels))
+print(np.array(labels))
+face_recognizer.train(faces, np.array(labels))
 
 
 
@@ -143,6 +169,7 @@ while True:
 
 	face_index = 0
 	if faces is not None:
+		print(faces)
 		# predict output
 		for face in faces:
 			(x, y, w, h) = face
@@ -153,22 +180,18 @@ while True:
 				# extract features
 				extracted_face = extract_face_area(gray, face, (0.03, 0.05)) #(0.075, 0.05)
 				face = gray[y:y + h, x:x + w]
-				face_resize = cv2.resize(face, (1280, 720))
-				prediction = face_recognizer.predict(face_resize)
-				print(prediction)
-				label_text = users[prediction[0]]
+				label = predict(frame, face)
+				cv2.waitKey(50)
 				# predict smile
 				prediction_result = predict_face_is_smiling(extracted_face)
 
 				# draw extracted face in the top right corner
 				frame[face_index * 64: (face_index + 1) * 64, -65:-1, :] = cv2.cvtColor(extracted_face * 255, cv2.COLOR_GRAY2RGB)
-				if prediction[1]<500:
-					print("done")
 				# annotate main image with a label
 				if prediction_result == 1:
-				    cv2.putText(frame, "SMILING" + label_text,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
+				    cv2.putText(frame, "SMILING" + label,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
 				else:
-				    cv2.putText(frame, "NOT SMILINGs" + label_text,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
+				    cv2.putText(frame, "NOT SMILINGs" + label,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
 
 				# increment counter
 				face_index += 1
