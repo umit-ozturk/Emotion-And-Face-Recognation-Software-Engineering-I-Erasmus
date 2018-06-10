@@ -91,7 +91,7 @@ def extract_face_area(gray, face, offset_coefficients):
 def image_reader(imagePath):
 	image = cv2.imread(imagePath)
 	cv2.imshow("Training on image...", cv2.resize(image, (400, 500)))
-	cv2.waitKey(50)	
+	cv2.waitKey(1)	
 	return image
 
 def prepare_training_data(trainingPath):
@@ -134,7 +134,7 @@ def predict(pre_frame, face):
 		#predict the image using our face recognizer
 		face_resize = cv2.resize(face, (im_width, im_height))
 		label, confidence = face_recognizer.predict(face_resize)
-		print(label)
+		print(confidence)
 
 		#get name of respective label returned by face recognizer
 		label_text = users[label]
@@ -144,7 +144,6 @@ def predict(pre_frame, face):
 
 print("Preparing User data")
 faces, labels, users = prepare_training_data(trainingPath)
-print(faces)
 print(labels)
 print(users)
 print("User Data prepared")
@@ -154,7 +153,7 @@ print("Total faces: ", len(faces))
 print("Total labels: ", len(labels))
 
 face_recognizer = cv2.face.LBPHFaceRecognizer_create()
-print(np.array(labels))
+face_recognizer.train(faces, np.array(labels))
 face_recognizer.train(faces, np.array(labels))
 
 
@@ -189,9 +188,9 @@ while True:
 				frame[face_index * 64: (face_index + 1) * 64, -65:-1, :] = cv2.cvtColor(extracted_face * 255, cv2.COLOR_GRAY2RGB)
 				# annotate main image with a label
 				if prediction_result == 1:
-				    cv2.putText(frame, "SMILING" + label,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
+				    cv2.putText(frame, label + " is similing",(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
 				else:
-				    cv2.putText(frame, "NOT SMILINGs" + label,(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
+				    cv2.putText(frame, label + " is not similing",(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
 
 				# increment counter
 				face_index += 1

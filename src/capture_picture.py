@@ -34,13 +34,11 @@ def capture_the_picture(number_of_photos, user):
 
 	camera = cv2.VideoCapture(0)
 	for x in range(number_of_photos):
-		save_image_path = training_path + "/" + user + "/" + user + str(x+1) + '.jpg'
-		accept = input("For capture photo please enter 'y'.")
-		if accept == "y":		
-			return_value,image = camera.read()
-			cv2.imwrite(save_image_path, image)
-			print(str(x) + ". taked photo ")
-			sleep(1)
+		save_image_path = training_path + "/" + user + "/" + user + str(x+1) + '.jpg'	
+		return_value,image = camera.read()
+		cv2.imwrite(save_image_path, image)
+		cv2.imshow("Training on image...", cv2.resize(image, (400, 500)))
+		print(str(x) + ". taked photo ")
 	camera.release()
 	cv2.destroyAllWindows()
 
