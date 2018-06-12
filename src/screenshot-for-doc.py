@@ -2,7 +2,7 @@ import pyscreenshot as ImageGrab
 from time import sleep
 import os
 
-savePath = "doc"
+savePath = "doc3"
 
 # grab fullscreen
 im = ImageGrab.grab()
