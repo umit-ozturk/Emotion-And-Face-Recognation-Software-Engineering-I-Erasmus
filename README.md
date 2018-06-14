@@ -108,11 +108,9 @@ Extract face features for smile predict.
 ```python
 		face = gray[y:y + h, x:x + w]
 		label = predict(frame, face)
-		cv2.waitKey(50)
 ```
 
-
-
+Send face coordinates to face recognition function.
 
 
 
@@ -121,12 +119,9 @@ Extract face features for smile predict.
 		    cv2.putText(frame, label + " is similing",(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
 		else:
 		    cv2.putText(frame, label + " is not similing",(x,y), cv2.FONT_HERSHEY_SIMPLEX, 2, 155, 6)
-
-		# increment counter
-		face_index += 1
 ```
 
-
+Print prediction results.
 
 
 
@@ -134,28 +129,36 @@ Extract face features for smile predict.
 ```python
  	def detect_face():
 ```
-Convert the test image to gray image as opencv face detector expects gray images.
+This function convert the test image to gray image as opencv face detector expects gray images.
 
 
 ```python
  	def extract_face_area():
 ```
 
+This function extract face features to predict smiling. Because algorithm compare face features and images in "smile.joblib.pkl" file.
+
+
 ```python
 	def prepare_training_data():
 ```
-
+This function will read all persons' training images, detect face from each image and will return two lists of exactly same size, one list of faces and another list of labels for each face.
 
 ```python
 	def predict_face_is_smiling():
 ```
+
+This function recognizes smiling or not smiling in webcam frame. Compare images in "smile.joblib.pkl" file and webcam frame.
+
 
 
 ```python
 	def predict():
 ```
 
+This function recognizes the person in webcam frame.
 
-**Testing**
 
-![Unknow](/doc/?.png)
+
+![Unknow](/image-doc/umit-smiling.png)
+![Unknow](/image-doc/umit-not-smiling.png)
