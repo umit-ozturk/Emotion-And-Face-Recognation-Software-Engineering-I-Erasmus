@@ -1,6 +1,6 @@
 EasyProcess==0.2.3
 numpy==1.14.3
-opencv-contrib-python==3.4.1.15
+opencv-contrib-python==3.4.7.28
 opencv-python==3.4.1.15
 Pillow==5.1.0
 pyscreenshot==0.4.2
